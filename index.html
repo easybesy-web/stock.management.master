@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบริหารจัดการสต็อกสินค้า & คลังสินค้า (StockMaster Pro)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- HTML5-QRCode CDN -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- Google Fonts - Kanit -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #f3f4f6;
+        }
+        [v-cloak] { display: none; }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 bg-slate-100 min-h-screen">
+    <div id="app" v-cloak class="min-h-screen flex flex-col">
+        <!-- ==================== LOGIN MODAL / OVERLAY ==================== -->
+        <div v-if="!currentUser" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all border border-slate-100">
+                <!-- Login Header -->
+                <div class="bg-gradient-to-r from-blue-700 to-indigo-800 p-6 text-white text-center relative">
+                    <div class="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-md border border-white/20 shadow-inner">
+                        <i class="fa-solid fa-boxes-stacked text-3xl text-blue-200"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold tracking-wide">StockMaster Pro</h2>
+                    <p class="text-blue-100 text-sm mt-1">ระบบบริหารจัดการคลังสินค้าและสต็อก</p>
+                </div>
+
+                <!-- Login Body -->
+                <div class="p-6 sm:p-8">
+                    <!-- Error Alert -->
+                    <div v-if="loginError" class="mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded text-red-700 text-xs sm:text-sm flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-exclamation text-red-500"></i>
+                            <span>{{ loginError }}</span>
+                        </div>
+                        <button @click="loginError = ''" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <form @submit.prevent="handleLogin" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">ชื่อผู้ใช้งาน / อีเมล</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                    <i class="fa-solid fa-user"></i>
+                                </span>
+                                <input v-model="loginForm.username" type="text" placeholder="ระบุ username" required
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">รหัสผ่าน</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                    <i class="fa-solid fa-lock"></i>
+                                </span>
+                                <input v-model="loginForm.password" type="password" placeholder="ระบุรหัสผ่าน" required
+                                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+                            </div>
+                        </div>
+
+                        <button type="submit" 
+                            class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบ
+                        </button>
+                    </form>
+
+                    <!-- Quick Demo Logins -->
+                    <div class="mt-6 pt-6 border-t border-slate-200">
+                        <p class="text-xs text-center font-medium text-slate-500 mb-3 uppercase tracking-wider">
+                            <i class="fa-solid fa-bolt text-amber-500 mr-1"></i> เข้าสู่ระบบด่วน (Quick Demo Accounts)
+                        </p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button @click="quickLogin('admin')" 
+                                class="p-2 bg-slate-50 hover:bg-purple-50 hover:border-purple-300 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-2 transition-all">
+                                <span class="w-2 h-2 rounded-full bg-purple-600"></span>
+                                <div class="text-left truncate">
+                                    <div class="font-bold text-purple-900 truncate">Admin</div>
+                                    <div class="text-[10px] text-slate-500 truncate">ผู้ดูแลระบบ</div>
+                                </div>
+                            </button>
+                            <button @click="quickLogin('manager')" 
+                                class="p-2 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-2 transition-all">
+                                <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                                <div class="text-left truncate">
+                                    <div class="font-bold text-blue-900 truncate">Manager</div>
+                                    <div class="text-[10px] text-slate-500 truncate">ผู้จัดการร้าน</div>
+                                </div>
+                            </button>
+                            <button @click="quickLogin('staff')" 
+                                class="p-2 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-2 transition-all">
+                                <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                                <div class="text-left truncate">
+                                    <div class="font-bold text-emerald-900 truncate">Staff</div>
+                                    <div class="text-[10px] text-slate-500 truncate">พนักงานคลัง</div>
+                                </div>
+                            </button>
+                            <button @click="quickLogin('executive')" 
+                                class="p-2 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 flex items-center gap-2 transition-all">
+                                <span class="w-2 h-2 rounded-full bg-amber-600"></span>
+                                <div class="text-left truncate">
+                                    <div class="font-bold text-amber-900 truncate">Executive</div>
+                                    <div class="text-[10px] text-slate-500 truncate">ผู้บริหาร</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MAIN HEADER & NAV ==================== -->
+        <header v-if="currentUser" class="bg-slate-900 text-white shadow-lg sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <!-- Logo & System Title -->
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                            <i class="fa-solid fa-boxes-stacked text-xl"></i>
+                        </div>
+                        <div>
+                            <span class="font-bold text-lg tracking-wide bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">StockMaster</span>
+                            <span class="text-xs bg-blue-500/30 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded-full ml-2 font-mono">v2.6</span>
+                        </div>
+                    </div>
+
+                    <!-- User Profile & Log Out -->
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right hidden sm:block">
+                            <div class="text-sm font-medium text-white flex items-center gap-2">
+                                <span>{{ currentUser.name }}</span>
+                                <span :class="getRoleBadgeClass(currentUser.role)" class="text-[10px] px-2 py-0.5 rounded-full font-semibold border">
+                                    {{ getRoleLabel(currentUser.role) }}
+                                </span>
+                            </div>
+                            <div class="text-xs text-slate-400">{{ currentUser.department }}</div>
+                        </div>
+
+                        <button @click="logout" 
+                            class="p-2 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium">
+                            <i class="fa-solid fa-right-from-bracket text-base"></i>
+                            <span class="hidden md:inline">ออกจากระบบ</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="flex space-x-1 border-t border-slate-800 overflow-x-auto custom-scrollbar">
+                    <button v-for="tab in navTabs" :key="tab.id"
+                        v-show="canAccessTab(tab.id)"
+                        @click="activeTab = tab.id"
+                        :class="activeTab === tab.id ? 'bg-blue-600 text-white font-medium' : 'text-slate-300 hover:bg-slate-800 hover:text-white'"
+                        class="px-3 py-2.5 rounded-t-lg text-xs sm:text-sm flex items-center space-x-2 whitespace-nowrap transition-all">
+                        <i :class="tab.icon"></i>
+                        <span>{{ tab.label }}</span>
+                        <span v-if="tab.badge" class="ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                            {{ tab.badge }}
+                        </span>
+                    </button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- ==================== MAIN CONTENT AREA ==================== -->
+        <main v-if="currentUser" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+            <!-- TAB 1: OVERVIEW DASHBOARD -->
+            <div v-if="activeTab === 'dashboard'" class="space-y-6">
+                <!-- Quick KPI Stats -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-slate-500 font-medium">รายการสินค้าทั้งหมด</p>
+                            <h3 class="text-2xl font-bold text-slate-800 mt-1">{{ products.length }} รายการ</h3>
+                            <p class="text-xs text-slate-400 mt-1">รวม {{ totalStockCount }} ชิ้น</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-box"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-slate-500 font-medium">มูลค่าสินค้าในสต็อก</p>
+                            <h3 class="text-2xl font-bold text-emerald-600 mt-1">฿{{ formatNumber(totalStockValue) }}</h3>
+                            <p class="text-xs text-emerald-600/70 mt-1">ราคาต้นทุนรวม</p>
+                        </div>
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-coins"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-slate-500 font-medium">สินค้าใกล้หมด / วิกฤต</p>
+                            <h3 class="text-2xl font-bold text-amber-600 mt-1">{{ lowStockProducts.length }} รายการ</h3>
+                            <p class="text-xs text-amber-600/80 mt-1">ต่ำกว่า Safety Stock</p>
+                        </div>
+                        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-slate-500 font-medium">ล็อตใกล้หมดอายุ (FEFO)</p>
+                            <h3 class="text-2xl font-bold text-rose-600 mt-1">{{ expiringLots.length }} ล็อต</h3>
+                            <p class="text-xs text-rose-600/80 mt-1">หมดอายุภายใน 30 วัน</p>
+                        </div>
+                        <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FEFO Expiring Lot Warning Alert Banner -->
+                <div v-if="expiringLots.length > 0" class="bg-rose-50 border border-rose-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                            <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-rose-900">แจ้งเตือนสินค้าหมดอายุตามหลัก FEFO (First-Expired, First-Out)</h4>
+                            <p class="text-xs text-rose-700">มี {{ expiringLots.length }} ล็อตสินค้าที่จะหมดอายุภายใน 30 วัน ควรเร่งดำเนินการตัดจ่ายก่อน</p>
+                        </div>
+                    </div>
+                    <button @click="activeTab = 'lots'" class="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-medium hover:bg-rose-700 transition-colors whitespace-nowrap">
+                        ตรวจสอบ ล็อต/FEFO
+                    </button>
+                </div>
+
+                <!-- Recent Stock Transactions & Low Stock Table Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Low Stock List -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-boxes-packing text-amber-500"></i>
+                                รายการสินค้าที่ต้องสั่งซื้อเพิ่ม
+                            </h3>
+                            <button @click="activeTab = 'products'" class="text-xs text-blue-600 hover:underline">ดูทั้งหมด</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 text-slate-500">
+                                    <tr>
+                                        <th class="p-2">ชื่อสินค้า</th>
+                                        <th class="p-2 text-center">คงเหลือ</th>
+                                        <th class="p-2 text-center">ขั้นต่ำ</th>
+                                        <th class="p-2 text-center">สถานะ</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <tr v-for="p in lowStockProducts" :key="p.id" class="hover:bg-slate-50">
+                                        <td class="p-2 font-medium text-slate-800">{{ p.name }}</td>
+                                        <td class="p-2 text-center font-bold text-rose-600">{{ p.stock }} {{ p.unit }}</td>
+                                        <td class="p-2 text-center text-slate-500">{{ p.minStock }} {{ p.unit }}</td>
+                                        <td class="p-2 text-center">
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                                                สั่งเติมด่วน
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="lowStockProducts.length === 0">
+                                        <td colspan="4" class="p-4 text-center text-slate-400">สินค้าทุกรายการอยู่ในระดับปลอดภัย</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Pending Approvals Summary -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <i class="fa-solid fa-clipboard-check text-blue-500"></i>
+                                รายการรออนุมัติเบิก/ปรับปรุง
+                            </h3>
+                            <button @click="activeTab = 'approvals'" class="text-xs text-blue-600 hover:underline">จัดการ</button>
+                        </div>
+                        <div class="space-y-3">
+                            <div v-for="app in pendingApprovals" :key="app.id" class="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-xs">
+                                <div>
+                                    <div class="font-bold text-slate-800">{{ app.productName }} ({{ app.qty }} {{ app.unit }})</div>
+                                    <div class="text-slate-500 text-[11px]">ยื่นโดย: {{ app.requestedBy }} • {{ app.date }}</div>
+                                    <div class="text-amber-700 font-medium text-[11px] mt-0.5">เหตุผล: {{ app.reason }}</div>
+                                </div>
+                                <span class="px-2 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-md">รอ ผจก. อนุมัติ</span>
+                            </div>
+                            <div v-if="pendingApprovals.length === 0" class="p-6 text-center text-slate-400 text-xs">
+                                ไม่มีรายการค้างอนุมัติในขณะนี้
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: PRODUCT CRUD & INVENTORY -->
+            <div v-if="activeTab === 'products'" class="space-y-4">
+                <!-- Top Toolbar -->
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-2 w-full md:w-auto flex-1">
+                        <div class="relative w-full md:w-80">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </span>
+                            <input v-model="productSearch" type="text" placeholder="ค้นหา รหัส, ชื่อสินค้า, หมวดหมู่..."
+                                class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <select v-model="selectedCategory" class="py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">ทุกหมวดหมู่</option>
+                            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                        <button v-if="hasPermission('stock_in') || hasPermission('stock_out')" @click="openScannerModal" 
+                            class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-qrcode"></i> สแกน QR / Barcode
+                        </button>
+                        <button v-if="hasPermission('edit')" @click="openProductModal()" 
+                            class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> เพิ่มสินค้าใหม่
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Products Table -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3">รหัสสินค้า / Barcode</th>
+                                    <th class="p-3">ชื่อสินค้า</th>
+                                    <th class="p-3">หมวดหมู่</th>
+                                    <th class="p-3 text-right">ต้นทุน/หน่วย</th>
+                                    <th class="p-3 text-center">จำนวนคงเหลือ</th>
+                                    <th class="p-3 text-center">สถานะสต็อก</th>
+                                    <th class="p-3 text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="p in filteredProducts" :key="p.id" class="hover:bg-slate-50 transition-colors">
+                                    <td class="p-3 font-mono text-slate-600 font-medium">
+                                        {{ p.code }}
+                                        <div class="text-[10px] text-slate-400">LOC: {{ p.location }}</div>
+                                    </td>
+                                    <td class="p-3 font-medium text-slate-800">
+                                        {{ p.name }}
+                                        <div class="text-[10px] text-slate-400">ล็อตแนะนำ (FEFO): {{ getRecommendedLot(p.id) }}</div>
+                                    </td>
+                                    <td class="p-3">
+                                        <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs">
+                                            {{ p.category }}
+                                        </span>
+                                    </td>
+                                    <td class="p-3 text-right font-mono">฿{{ formatNumber(p.cost) }}</td>
+                                    <td class="p-3 text-center">
+                                        <span class="font-bold text-base" :class="p.stock <= p.minStock ? 'text-rose-600' : 'text-slate-800'">
+                                            {{ p.stock }}
+                                        </span>
+                                        <span class="text-xs text-slate-500 ml-1">{{ p.unit }}</span>
+                                    </td>
+                                    <td class="p-3 text-center">
+                                        <span v-if="p.stock <= 0" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-800">
+                                            สินค้าหมด
+                                        </span>
+                                        <span v-else-if="p.stock <= p.minStock" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                                            ต้องสั่งซื้อ
+                                        </span>
+                                        <span v-else class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                            ปกติ
+                                        </span>
+                                    </td>
+                                    <td class="p-3 text-center space-x-1">
+                                        <button v-if="hasPermission('stock_in')" @click="openStockInModal(p)" title="รับเข้า" class="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded">
+                                            <i class="fa-solid fa-arrow-down text-base"></i>
+                                        </button>
+                                        <button v-if="hasPermission('stock_out')" @click="openStockOutModal(p)" title="เบิกออก" class="p-1.5 text-amber-600 hover:bg-amber-50 rounded">
+                                            <i class="fa-solid fa-arrow-up text-base"></i>
+                                        </button>
+                                        <button v-if="hasPermission('edit')" @click="openProductModal(p)" title="แก้ไข" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded">
+                                            <i class="fa-solid fa-pen-to-square text-base"></i>
+                                        </button>
+                                        <button v-if="hasPermission('delete')" @click="deleteProduct(p.id)" title="ลบ" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded">
+                                            <i class="fa-solid fa-trash text-base"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: STOCK COUNTING / STOCK TAKING (ฟังก์ชันใหม่: ตรวจนับสต็อก) -->
+            <div v-if="activeTab === 'counting'" class="space-y-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-4">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                                <i class="fa-solid fa-clipboard-list text-teal-600"></i>
+                                ระบบตรวจนับสต็อกสินค้าประจำงวด (Stock Counting & Physical Inventory)
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">สร้างใบนับสต็อก บันทึกยอดนับจริง เปรียบเทียบผลต่าง และปรับปรุงยอดในระบบอัตโนมัติ</p>
+                        </div>
+                        <button @click="openCreateCountModal" 
+                            class="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-plus"></i> สร้างใบนับสต็อกใหม่
+                        </button>
+                    </div>
+
+                    <!-- Counting Sessions List -->
+                    <div class="space-y-4">
+                        <div v-for="session in stockCountSessions" :key="session.id" class="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-mono font-bold text-teal-700 text-sm">{{ session.refNo }}</span>
+                                        <span :class="session.status === 'บันทึกแล้ว' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="px-2 py-0.5 rounded text-[10px] font-bold">
+                                            {{ session.status }}
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-slate-500 mt-0.5">หัวข้อ: {{ session.title }} | ผู้ตรวจนับ: {{ session.countedBy }} | วันที่: {{ session.date }}</div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button v-if="session.status === 'กำลังนับ'" @click="activeCountingSession = session" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium">
+                                        <i class="fa-solid fa-pen-ruler mr-1"></i> บันทึกผลนับจริง
+                                    </button>
+                                    <button @click="viewCountReport(session)" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-medium">
+                                        <i class="fa-solid fa-eye mr-1"></i> ดูรายงานผลต่าง
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Interactive Counting Table for Active Session -->
+                            <div v-if="activeCountingSession && activeCountingSession.id === session.id" class="bg-white p-4 rounded-lg border border-teal-200 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider text-teal-800">
+                                        <i class="fa-solid fa-list-check mr-1"></i> ตารางบันทึกจำนวนนับจริง
+                                    </h4>
+                                    <button @click="activeCountingSession = null" class="text-xs text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i> ปิดหน้าต่างนับ</button>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-xs text-left">
+                                        <thead class="bg-slate-100 text-slate-600">
+                                            <tr>
+                                                <th class="p-2">รหัส / ชื่อสินค้า</th>
+                                                <th class="p-2 text-center">ระบบ</th>
+                                                <th class="p-2 text-center">นับจริง</th>
+                                                <th class="p-2 text-center">ผลต่าง (Diff)</th>
+                                                <th class="p-2">หมายเหตุ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            <tr v-for="item in session.items" :key="item.productId">
+                                                <td class="p-2 font-medium">{{ item.productName }}</td>
+                                                <td class="p-2 text-center font-mono">{{ item.systemQty }}</td>
+                                                <td class="p-2 text-center">
+                                                    <input v-model.number="item.actualQty" type="number" min="0" class="w-20 px-2 py-1 border rounded text-center font-bold font-mono bg-teal-50/50">
+                                                </td>
+                                                <td class="p-2 text-center font-bold font-mono" :class="(item.actualQty - item.systemQty) < 0 ? 'text-rose-600' : ((item.actualQty - item.systemQty) > 0 ? 'text-blue-600' : 'text-emerald-600')">
+                                                    {{ (item.actualQty - item.systemQty) > 0 ? '+' + (item.actualQty - item.systemQty) : (item.actualQty - item.systemQty) }}
+                                                </td>
+                                                <td class="p-2">
+                                                    <input v-model="item.note" type="text" placeholder="ระบุสาเหตุถ้ามีผลต่าง" class="w-full px-2 py-1 border rounded text-xs">
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="flex justify-end pt-2">
+                                    <button @click="finalizeStockCount(session)" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow">
+                                        <i class="fa-solid fa-check-double mr-1"></i> ยืนยันผลการตรวจนับ & ปรับปรุงสต็อกจริง
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="stockCountSessions.length === 0" class="p-8 text-center text-slate-400 text-xs">
+                            ยังไม่มีรอบการตรวจนับสต็อกในระบบ
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: LOTS & FEFO TRACKING -->
+            <div v-if="activeTab === 'lots'" class="space-y-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-base mb-1">การจัดการล็อตสินค้า & FEFO (First-Expired, First-Out)</h3>
+                    <p class="text-xs text-slate-500 mb-4">ระบบจัดลำดับการจ่ายสินค้าตามวันหมดอายุโดยอัตโนมัติ เพื่อลดความเสี่ยงสินค้าเสื่อมสภาพ</p>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs sm:text-sm text-left">
+                            <thead class="bg-slate-50 text-slate-600 font-semibold border-b">
+                                <tr>
+                                    <th class="p-3">เลขที่ล็อต (Lot No.)</th>
+                                    <th class="p-3">สินค้า</th>
+                                    <th class="p-3 text-center">วันที่ผลิต</th>
+                                    <th class="p-3 text-center">วันหมดอายุ (EXP)</th>
+                                    <th class="p-3 text-center">คงเหลือในล็อต</th>
+                                    <th class="p-3 text-center">สถานะ FEFO</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="lot in lots" :key="lot.lotNumber" class="hover:bg-slate-50">
+                                    <td class="p-3 font-mono font-bold text-blue-700">{{ lot.lotNumber }}</td>
+                                    <td class="p-3 font-medium">{{ getProductName(lot.productId) }}</td>
+                                    <td class="p-3 text-center text-slate-500">{{ lot.mfgDate }}</td>
+                                    <td class="p-3 text-center font-bold" :class="isExpiringSoon(lot.expDate) ? 'text-rose-600' : 'text-slate-700'">
+                                        {{ lot.expDate }}
+                                    </td>
+                                    <td class="p-3 text-center font-bold text-slate-800">{{ lot.qty }}</td>
+                                    <td class="p-3 text-center">
+                                        <span v-if="isExpiringSoon(lot.expDate)" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
+                                            เร่งจ่ายด่วน (FEFO Priority)
+                                        </span>
+                                        <span v-else class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                                            ปกติ
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: MANAGER APPROVALS -->
+            <div v-if="activeTab === 'approvals'" class="space-y-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-base mb-1">อนุมัติการเบิกจ่าย & ปรับปรุงสต็อก</h3>
+                    <p class="text-xs text-slate-500 mb-4">สำหรับผู้จัดการร้าน / หัวหน้าคลัง ตรวจสอบและอนุมัติคำขอเบิกสินค้า</p>
+
+                    <div class="space-y-3">
+                        <div v-for="app in pendingApprovals" :key="app.id" class="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold text-[10px] rounded">รออนุมัติ</span>
+                                    <h4 class="font-bold text-slate-800">{{ app.productName }}</h4>
+                                    <span class="text-sm font-semibold text-blue-600">จำนวน: {{ app.qty }} {{ app.unit }}</span>
+                                </div>
+                                <p class="text-xs text-slate-600"><strong>ผู้ยื่นคำขอ:</strong> {{ app.requestedBy }} | <strong>วันที่:</strong> {{ app.date }}</p>
+                                <p class="text-xs text-slate-500"><strong>เหตุผล:</strong> {{ app.reason }}</p>
+                            </div>
+
+                            <div v-if="hasPermission('approve')" class="flex items-center gap-2">
+                                <button @click="approveRequest(app.id)" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1">
+                                    <i class="fa-solid fa-check"></i> อนุมัติ
+                                </button>
+                                <button @click="rejectRequest(app.id)" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1">
+                                    <i class="fa-solid fa-xmark"></i> ไม่อนุมัติ
+                                </button>
+                            </div>
+                            <div v-else class="text-xs text-slate-400 italic">
+                                คุณไม่มีสิทธิ์อนุมัติ (สำหรับ Manager / Admin)
+                            </div>
+                        </div>
+
+                        <div v-if="pendingApprovals.length === 0" class="p-8 text-center text-slate-400">
+                            <i class="fa-solid fa-circle-check text-3xl mb-2 text-emerald-400"></i>
+                            <p>ไม่มีรายการค้างอนุมัติในขณะนี้</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: SUPPLIER & PO MANAGEMENT -->
+            <div v-if="activeTab === 'supplier'" class="space-y-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-slate-800 text-base">ใบสั่งซื้อสินค้า (Purchase Order - PO) & ซัพพลายเออร์</h3>
+                        <button v-if="hasPermission('edit')" @click="showCreatePOModal = true" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700">
+                            + ออกใบ PO สั่งซื้อ
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs sm:text-sm text-left">
+                            <thead class="bg-slate-50 text-slate-600 font-semibold border-b">
+                                <tr>
+                                    <th class="p-3">เลขที่ PO</th>
+                                    <th class="p-3">ชื่อซัพพลายเออร์</th>
+                                    <th class="p-3">รายการสินค้า</th>
+                                    <th class="p-3 text-right">ยอดรวม</th>
+                                    <th class="p-3 text-center">สถานะ PO</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="po in purchaseOrders" :key="po.id" class="hover:bg-slate-50">
+                                    <td class="p-3 font-mono font-bold text-slate-800">{{ po.poNumber }}</td>
+                                    <td class="p-3 font-medium text-slate-700">{{ po.supplierName }}</td>
+                                    <td class="p-3 text-slate-600">{{ po.items }}</td>
+                                    <td class="p-3 text-right font-mono font-bold">฿{{ formatNumber(po.totalAmount) }}</td>
+                                    <td class="p-3 text-center">
+                                        <span :class="po.status === 'ส่งแล้ว' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="px-2 py-0.5 rounded text-[10px] font-bold">
+                                            {{ po.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 7: EXECUTIVE REPORTS -->
+            <div v-if="activeTab === 'reports'" class="space-y-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-slate-800 text-base">รายงานภาพรวมและส่งออกข้อมูล (Executive Reports)</h3>
+                        <button @click="exportCSV" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-excel"></i> ส่งออกรายงาน CSV
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <p class="text-xs text-slate-500 font-medium">มูลค่าสินค้าเข้าเดือนนี้</p>
+                            <h4 class="text-xl font-bold text-emerald-600 mt-1">฿{{ formatNumber(145000) }}</h4>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <p class="text-xs text-slate-500 font-medium">มูลค่าการเบิกจ่ายเดือนนี้</p>
+                            <h4 class="text-xl font-bold text-blue-600 mt-1">฿{{ formatNumber(98200) }}</h4>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                            <p class="text-xs text-slate-500 font-medium">อัตราหมุนเวียนสต็อก (Inventory Turnover)</p>
+                            <h4 class="text-xl font-bold text-purple-600 mt-1">4.2 รอบ/ปี</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 8: ADMIN & PERMISSIONS MANAGEMENT + AUDIT LOG -->
+            <div v-if="activeTab === 'admin'" class="space-y-6">
+
+                <!-- SECTION: USER & PERMISSION MANAGEMENT -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                                <i class="fa-solid fa-user-shield text-purple-600"></i>
+                                จัดการสิทธิ์การใช้งาน & กำหนดผู้ได้รับสิทธิ์ (Grant Permissions)
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">บริหารจัดการผู้ใช้งานในระบบและกำหนดสิทธิ์ระดับมอดูลโดยรายละเอียด</p>
+                        </div>
+
+                        <button @click="openGrantPermissionModal()" 
+                            class="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm hover:shadow transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>เพิ่มผู้ได้รับสิทธิ์ / กำหนดสิทธิ์</span>
+                        </button>
+                    </div>
+
+                    <!-- User & Grant Permissions Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs sm:text-sm text-left">
+                            <thead class="bg-slate-50 text-slate-600 font-semibold border-b">
+                                <tr>
+                                    <th class="p-3">ชื่อ-นามสกุล / บัญชีผู้ใช้</th>
+                                    <th class="p-3">แผนก / ตำแหน่ง</th>
+                                    <th class="p-3">สิทธิ์หลัก (Role)</th>
+                                    <th class="p-3">สิทธิ์ระดับมอดูล (Granted Permissions)</th>
+                                    <th class="p-3 text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="user in usersList" :key="user.id" class="hover:bg-slate-50">
+                                    <td class="p-3">
+                                        <div class="font-bold text-slate-800">{{ user.name }}</div>
+                                        <div class="text-xs text-slate-400 font-mono">{{ user.username }} | {{ user.email }}</div>
+                                    </td>
+                                    <td class="p-3 text-slate-600">{{ user.department }}</td>
+                                    <td class="p-3">
+                                        <span :class="getRoleBadgeClass(user.role)" class="px-2.5 py-0.5 rounded-full text-xs font-semibold border">
+                                            {{ getRoleLabel(user.role) }}
+                                        </span>
+                                    </td>
+                                    <td class="p-3">
+                                        <div class="flex flex-wrap gap-1">
+                                            <span v-for="perm in user.permissions" :key="perm" 
+                                                class="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[10px] font-medium">
+                                                <i class="fa-solid fa-check text-emerald-500 mr-1"></i>{{ getPermissionLabel(perm) }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="p-3 text-center space-x-1">
+                                        <button @click="openGrantPermissionModal(user)" title="แก้ไขสิทธิ์" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded">
+                                            <i class="fa-solid fa-pen-to-square text-base"></i>
+                                        </button>
+                                        <button v-if="user.id !== currentUser.id" @click="revokeUserAccess(user)" title="ยกเลิกสิทธิ์" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded">
+                                            <i class="fa-solid fa-user-xmark text-base"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECTION: AUDIT LOG -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-blue-600"></i>
+                        ประวัติการทำรายการ & บันทึกความปลอดภัย (Audit Log)
+                    </h3>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-50 text-slate-600 font-semibold border-b">
+                                <tr>
+                                    <th class="p-2.5">วัน-เวลา</th>
+                                    <th class="p-2.5">ผู้ดำเนินการ</th>
+                                    <th class="p-2.5">การกระทำ (Action)</th>
+                                    <th class="p-2.5">รายละเอียด</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 font-mono">
+                                <tr v-for="log in auditLogs" :key="log.id" class="hover:bg-slate-50">
+                                    <td class="p-2.5 text-slate-500 whitespace-nowrap">{{ log.timestamp }}</td>
+                                    <td class="p-2.5 font-sans font-medium text-slate-800">{{ log.user }}</td>
+                                    <td class="p-2.5 font-sans">
+                                        <span :class="getLogBadgeClass(log.action)" class="px-2 py-0.5 rounded text-[10px] font-bold">
+                                            {{ log.action }}
+                                        </span>
+                                    </td>
+                                    <td class="p-2.5 font-sans text-slate-600">{{ log.details }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- ==================== CREATE COUNT SESSION MODAL ==================== -->
+        <div v-if="showCreateCountModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+                <h3 class="font-bold text-slate-800 text-base border-b pb-2">สร้างรอบตรวจนับสต็อกสินค้าใหม่</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">หัวข้อการตรวจนับ</label>
+                        <input v-model="countForm.title" type="text" placeholder="เช่น ตรวจนับสต็อกประจำเดือน กันยายน 2026" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ผู้รับผิดชอบตรวจนับ</label>
+                        <input v-model="countForm.countedBy" type="text" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button @click="showCreateCountModal = false" class="px-4 py-2 bg-slate-100 rounded-lg text-xs">ยกเลิก</button>
+                    <button @click="saveCreateCountSession" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-xs font-bold">เริ่มสร้างใบนับ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== GRANT PERMISSION / EDIT USER MODAL ==================== -->
+        <div v-if="showGrantModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden my-8">
+                <div class="bg-gradient-to-r from-purple-700 to-indigo-800 p-5 text-white flex items-center justify-between">
+                    <h3 class="font-bold text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-user-gear"></i>
+                        {{ isEditingUser ? 'แก้ไขสิทธิ์และรายละเอียดผู้ใช้งาน' : 'เพิ่มผู้ได้รับสิทธิ์ / กำหนดสิทธิ์ใหม่' }}
+                    </h3>
+                    <button @click="showGrantModal = false" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+
+                <form @submit.prevent="saveUserPermissions" class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">ชื่อ-นามสกุล <span class="text-rose-500">*</span></label>
+                            <input v-model="grantForm.name" type="text" placeholder="นาย สมชาย ใจดี" required
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">อีเมล / บัญชีผู้ใช้ <span class="text-rose-500">*</span></label>
+                            <input v-model="grantForm.username" type="text" placeholder="somchai@company.com" required
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">แผนก / ตำแหน่ง</label>
+                            <input v-model="grantForm.department" type="text" placeholder="เช่น คลังสินค้า / เจ้าหน้าที่"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">สิทธิ์หลัก (Role) <span class="text-rose-500">*</span></label>
+                            <select v-model="grantForm.role" @change="onRoleSelectChange" required
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 font-semibold">
+                                <option value="admin">System Admin (ผู้ดูแลระบบ)</option>
+                                <option value="manager">Store Manager (ผู้จัดการร้าน)</option>
+                                <option value="staff">Warehouse Staff (พนักงานคลัง)</option>
+                                <option value="executive">Executive (ผู้บริหาร)</option>
+                                <option value="supplier">Supplier (ซัพพลายเออร์ภายนอก)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fine-grained Checkboxes -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-2">กำหนดสิทธิ์การใช้งานรายมอดูล (Module-level Permissions):</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                            <label v-for="p in availablePermissions" :key="p.key" class="flex items-center space-x-2 text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" :value="p.key" v-model="grantForm.permissions" class="rounded text-purple-600 focus:ring-purple-500 h-4 w-4">
+                                <span>{{ p.label }}</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">เหตุผล / หมายเหตุในการให้สิทธิ์ <span class="text-rose-500">*</span></label>
+                        <textarea v-model="grantForm.reason" rows="2" placeholder="ระบุเหตุผล เช่น แต่งตั้งรับตำแหน่งใหม่ หรือปรับปรุงสิทธิ์ประจำปี..." required
+                            class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-end space-x-2 pt-3 border-t">
+                        <button type="button" @click="showGrantModal = false" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs sm:text-sm font-semibold">
+                            ยกเลิก
+                        </button>
+                        <button type="submit" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-md">
+                            บันทึกการมอบสิทธิ์
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ==================== PRODUCT FORM MODAL ==================== -->
+        <div v-if="showProductModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                <div class="bg-slate-800 p-4 text-white flex items-center justify-between">
+                    <h3 class="font-bold text-base">{{ isEditingProduct ? 'แก้ไขข้อมูลสินค้า' : 'เพิ่มสินค้าใหม่' }}</h3>
+                    <button @click="showProductModal = false" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <form @submit.prevent="saveProduct" class="p-5 space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">รหัสสินค้า / QR Code</label>
+                        <input v-model="productForm.code" type="text" required class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่อสินค้า</label>
+                        <input v-model="productForm.name" type="text" required class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">หมวดหมู่</label>
+                            <input v-model="productForm.category" type="text" required class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">หน่วยนับ</label>
+                            <input v-model="productForm.unit" type="text" required class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">ต้นทุน (บาท)</label>
+                            <input v-model.number="productForm.cost" type="number" required class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1"> Safety Stock (ขั้นต่ำ)</label>
+                            <input v-model.number="productForm.minStock" type="number" required class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ตำแหน่งจัดเก็บ (Location Rack)</label>
+                        <input v-model="productForm.location" type="text" required class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-3 border-t">
+                        <button type="button" @click="showProductModal = false" class="px-4 py-2 bg-slate-100 rounded-lg text-xs font-semibold">ยกเลิก</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold">บันทึก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ==================== STOCK IN MODAL ==================== -->
+        <div v-if="showStockInModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+                <h3 class="font-bold text-slate-800 text-base border-b pb-2">รับสินค้าเข้าสต็อก & สร้างล็อต (Stock In)</h3>
+                <p class="text-xs text-slate-600 font-medium">รายการ: {{ selectedProductForStock?.name }}</p>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">จำนวนรับเข้า</label>
+                        <input v-model.number="stockInForm.qty" type="number" min="1" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">เลขที่ล็อต (Lot Number)</label>
+                        <input v-model="stockInForm.lotNumber" type="text" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">วันที่ผลิต</label>
+                            <input v-model="stockInForm.mfgDate" type="date" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">วันหมดอายุ (EXP)</label>
+                            <input v-model="stockInForm.expDate" type="date" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button @click="showStockInModal = false" class="px-4 py-2 bg-slate-100 rounded-lg text-xs">ยกเลิก</button>
+                    <button @click="processStockIn" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold">ยืนยันรับเข้า</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== STOCK OUT MODAL ==================== -->
+        <div v-if="showStockOutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+                <h3 class="font-bold text-slate-800 text-base border-b pb-2">เบิกจ่ายสินค้า (Stock Out)</h3>
+                <p class="text-xs text-slate-600 font-medium">รายการ: {{ selectedProductForStock?.name }} (คงเหลือ: {{ selectedProductForStock?.stock }} {{ selectedProductForStock?.unit }})</p>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">จำนวนที่เบิก</label>
+                        <input v-model.number="stockOutForm.qty" type="number" min="1" :max="selectedProductForStock?.stock" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">เหตุผลในการเบิก</label>
+                        <input v-model="stockOutForm.reason" type="text" placeholder="เช่น เบิกไปใช้หน้าร้าน, ปรับปรุงสต็อก" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button @click="showStockOutModal = false" class="px-4 py-2 bg-slate-100 rounded-lg text-xs">ยกเลิก</button>
+                    <button @click="processStockOut" class="px-4 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold">ยืนยันการเบิก</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== CREATE PO MODAL ==================== -->
+        <div v-if="showCreatePOModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 space-y-4">
+                <h3 class="font-bold text-slate-800 text-base border-b pb-2">ออกใบสั่งซื้อสินค้า (Create PO)</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ชื่อซัพพลายเออร์</label>
+                        <input v-model="poForm.supplierName" type="text" placeholder="ระบุชื่อบริษัท/ซัพพลายเออร์" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">รายการสินค้า</label>
+                        <input v-model="poForm.items" type="text" placeholder="เช่น เมล็ดกาแฟ 50 ถุง" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">ยอดรวม (บาท)</label>
+                        <input v-model.number="poForm.totalAmount" type="number" class="w-full px-3 py-2 border rounded-lg text-xs sm:text-sm">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button @click="showCreatePOModal = false" class="px-4 py-2 bg-slate-100 rounded-lg text-xs">ยกเลิก</button>
+                    <button @click="savePO" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold">สร้างใบ PO</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== QR CODE SCANNER MODAL ==================== -->
+        <div v-if="showScannerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+                <div class="bg-slate-900 p-4 text-white flex justify-between items-center">
+                    <h3 class="text-sm font-bold"><i class="fa-solid fa-qrcode text-indigo-400 mr-2"></i> สแกน QR / Barcode</h3>
+                    <button @click="closeScannerModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <div id="qr-reader" class="w-full bg-black rounded-lg overflow-hidden min-h-[220px]"></div>
+                    <p class="text-[11px] text-center text-slate-500">สแกนโค้ดสินค้าเพื่อค้นหาหรือเบิกจ่ายด่วน</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Vue 3 Main Script Logic -->
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                // ================= USER STATE & AUTH =================
+                const currentUser = ref(null);
+                const loginForm = ref({ username: '', password: '' });
+                const loginError = ref('');
+
+                // Mock Users List
+                const usersList = ref([
+                    {
+                        id: 'U1',
+                        username: 'admin',
+                        password: '123',
+                        name: 'สมศักดิ์ ผู้ดูแลระบบ',
+                        email: 'admin@company.com',
+                        department: 'เทคโนโลยีสารสนเทศ',
+                        role: 'admin',
+                        permissions: ['read', 'stock_in', 'stock_out', 'approve', 'edit', 'delete', 'reports', 'admin_access']
+                    },
+                    {
+                        id: 'U2',
+                        username: 'manager',
+                        password: '123',
+                        name: 'นภา ผจก.คลังสินค้า',
+                        email: 'napha@company.com',
+                        department: 'บริหารคลังสินค้า',
+                        role: 'manager',
+                        permissions: ['read', 'stock_in', 'stock_out', 'approve', 'edit', 'reports']
+                    },
+                    {
+                        id: 'U3',
+                        username: 'staff',
+                        password: '123',
+                        name: 'วิชัย พนักงานคลัง',
+                        email: 'wichai@company.com',
+                        department: 'ปฏิบัติการคลังสินค้า',
+                        role: 'staff',
+                        permissions: ['read', 'stock_in', 'stock_out']
+                    },
+                    {
+                        id: 'U4',
+                        username: 'executive',
+                        password: '123',
+                        name: 'ดร.อนันต์ กรรมการผู้จัดการ',
+                        email: 'anan@company.com',
+                        department: 'ผู้บริหารระดับสูง',
+                        role: 'executive',
+                        permissions: ['read', 'reports']
+                    },
+                    {
+                        id: 'U5',
+                        username: 'supplier',
+                        password: '123',
+                        name: 'บจก. ซัพพลายเออร์ ไทย',
+                        email: 'contact@supplier.co.th',
+                        department: 'ผู้ส่งมอบภายนอก',
+                        role: 'supplier',
+                        permissions: ['read']
+                    }
+                ]);
+
+                // Available fine-grained permissions for Grant Permission modal
+                const availablePermissions = [
+                    { key: 'read', label: 'อ่าน / ดูข้อมูลสินค้า' },
+                    { key: 'stock_in', label: 'บันทึกรับสินค้าเข้า (Stock In)' },
+                    { key: 'stock_out', label: 'เบิกจ่ายสินค้า (Stock Out)' },
+                    { key: 'approve', label: 'อนุมัติรายการ (Manager Approve)' },
+                    { key: 'edit', label: 'สร้าง/แก้ไขรายการสินค้า' },
+                    { key: 'delete', label: 'ลบข้อมูลสินค้า' },
+                    { key: 'reports', label: 'ดูรายงานบริหาร & Export' },
+                    { key: 'admin_access', label: 'จัดการสิทธิ์ & ดู Audit Log' }
+                ];
+
+                // Navigation Tabs
+                const activeTab = ref('dashboard');
+                const navTabs = ref([
+                    { id: 'dashboard', label: 'แดชบอร์ดภาพรวม', icon: 'fa-solid fa-chart-line' },
+                    { id: 'products', label: 'รายการสินค้าในสต็อก', icon: 'fa-solid fa-boxes-stacked' },
+                    { id: 'counting', label: 'ตรวจนับสต็อก (Stock Count)', icon: 'fa-solid fa-clipboard-list' },
+                    { id: 'lots', label: 'จัดการล็อต & FEFO', icon: 'fa-solid fa-clock-rotate-left' },
+                    { id: 'approvals', label: 'อนุมัติการเบิกจ่าย', icon: 'fa-solid fa-clipboard-check', badge: 1 },
+                    { id: 'supplier', label: 'ใบสั่งซื้อ PO & ซัพพลายเออร์', icon: 'fa-solid fa-truck-ramp-box' },
+                    { id: 'reports', label: 'รายงานผู้บริหาร', icon: 'fa-solid fa-file-invoice-dollar' },
+                    { id: 'admin', label: 'จัดการสิทธิ์ & Audit Log', icon: 'fa-solid fa-shield-halved' }
+                ]);
+
+                // ================= LOGIN / LOGOUT =================
+                const handleLogin = () => {
+                    const found = usersList.value.find(u => 
+                        (u.username === loginForm.value.username || u.email === loginForm.value.username) && 
+                        u.password === loginForm.value.password
+                    );
+
+                    if (found) {
+                        currentUser.value = { ...found };
+                        loginError.value = '';
+                        loginForm.value = { username: '', password: '' };
+                        addAuditLog('เข้าสู่ระบบ', `ผู้ใช้ ${found.name} เข้าสู่ระบบสำเร็จ`);
+                    } else {
+                        loginError.value = 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง';
+                    }
+                };
+
+                const quickLogin = (role) => {
+                    const user = usersList.value.find(u => u.role === role);
+                    if (user) {
+                        currentUser.value = { ...user };
+                        loginError.value = '';
+                        addAuditLog('เข้าสู่ระบบด่วน', `ผู้ใช้ ${user.name} เข้าสู่ระบบด้วยบทบาท ${user.role}`);
+                    }
+                };
+
+                const logout = () => {
+                    if (currentUser.value) {
+                        addAuditLog('ออกจากระบบ', `ผู้ใช้ ${currentUser.value.name} ออกจากระบบ`);
+                    }
+                    currentUser.value = null;
+                    activeTab.value = 'dashboard';
+                };
+
+                // Permission Checks
+                const hasPermission = (perm) => {
+                    if (!currentUser.value) return false;
+                    return currentUser.value.permissions.includes(perm);
+                };
+
+                const canAccessTab = (tabId) => {
+                    if (!currentUser.value) return false;
+                    if (tabId === 'admin') return hasPermission('admin_access');
+                    if (tabId === 'approvals') return hasPermission('approve') || hasPermission('read');
+                    if (tabId === 'reports') return hasPermission('reports');
+                    return true;
+                };
+
+                // ================= STOCK COUNTING STATE & LOGIC =================
+                const stockCountSessions = ref([
+                    {
+                        id: 1,
+                        refNo: 'STC-2026-001',
+                        title: 'ตรวจนับสต็อกประจำสัปดาห์ (โซน A และ B)',
+                        countedBy: 'วิชัย พนักงานคลัง',
+                        date: '2026-09-24',
+                        status: 'กำลังนับ',
+                        items: [
+                            { productId: 1, productName: 'เมล็ดกาแฟ อาราบิก้า 100% (1kg)', systemQty: 18, actualQty: 18, note: '' },
+                            { productId: 2, productName: 'นมสดพาสเจอร์ไรส์ 2L', systemQty: 5, actualQty: 4, note: 'ชำรุด 1 แกลลอน' },
+                            { productId: 3, productName: 'ไซรัปวานิลลา 750ml', systemQty: 12, actualQty: 12, note: '' }
+                        ]
+                    }
+                ]);
+
+                const showCreateCountModal = ref(false);
+                const activeCountingSession = ref(null);
+                const countForm = ref({ title: '', countedBy: 'วิชัย พนักงานคลัง' });
+
+                const openCreateCountModal = () => {
+                    countForm.value = {
+                        title: 'ตรวจนับสต็อกประจำงวด ' + new Date().toLocaleDateString('th-TH'),
+                        countedBy: currentUser.value ? currentUser.value.name : 'พนักงานคลัง'
+                    };
+                    showCreateCountModal.value = true;
+                };
+
+                const saveCreateCountSession = () => {
+                    const newSession = {
+                        id: Date.now(),
+                        refNo: 'STC-' + new Date().getFullYear() + '-' + Math.floor(100 + Math.random() * 900),
+                        title: countForm.value.title,
+                        countedBy: countForm.value.countedBy,
+                        date: new Date().toISOString().split('T')[0],
+                        status: 'กำลังนับ',
+                        items: products.value.map(p => ({
+                            productId: p.id,
+                            productName: p.name,
+                            systemQty: p.stock,
+                            actualQty: p.stock,
+                            note: ''
+                        }))
+                    };
+                    stockCountSessions.value.unshift(newSession);
+                    activeCountingSession.value = newSession;
+                    showCreateCountModal.value = false;
+                    addAuditLog('สร้างรอบตรวจนับ', `สร้างใบนับสต็อก ${newSession.refNo} (${newSession.title})`);
+                };
+
+                const finalizeStockCount = (session) => {
+                    if (confirm('คุณต้องการยืนยันผลการตรวจนับ และปรับปรุงยอดคงเหลือในระบบจริงตามผลนับใช่หรือไม่?')) {
+                        session.items.forEach(item => {
+                            const prod = products.value.find(p => p.id === item.productId);
+                            if (prod) {
+                                const diff = item.actualQty - prod.stock;
+                                prod.stock = item.actualQty;
+                                if (diff !== 0) {
+                                    addAuditLog('ปรับปรุงสต็อกจากการตรวจนับ', `สินค้า ${prod.name} ปรับยอดจากระบบ ${item.systemQty} เป็นยอดนับจริง ${item.actualQty} (ผลต่าง: ${diff}) หมายเหตุ: ${item.note || '-'}`);
+                                }
+                            }
+                        });
+                        session.status = 'บันทึกแล้ว';
+                        activeCountingSession.value = null;
+                        alert('บันทึกผลการตรวจนับและปรับปรุงสต็อกสำเร็จเรียบร้อยแล้ว!');
+                    }
+                };
+
+                const viewCountReport = (session) => {
+                    alert(`รายงานรอบนับ: ${session.refNo}\nหัวข้อ: ${session.title}\nสถานะ: ${session.status}\nผู้ตรวจนับ: ${session.countedBy}`);
+                };
+
+                // ================= GRANT PERMISSION MODAL & ADMIN LOGIC =================
+                const showGrantModal = ref(false);
+                const isEditingUser = ref(false);
+                const grantForm = ref({
+                    id: null,
+                    name: '',
+                    username: '',
+                    department: '',
+                    role: 'staff',
+                    permissions: [],
+                    reason: ''
+                });
+
+                const openGrantPermissionModal = (user = null) => {
+                    if (user) {
+                        isEditingUser.value = true;
+                        grantForm.value = {
+                            id: user.id,
+                            name: user.name,
+                            username: user.username,
+                            department: user.department,
+                            role: user.role,
+                            permissions: [...user.permissions],
+                            reason: ''
+                        };
+                    } else {
+                        isEditingUser.value = false;
+                        grantForm.value = {
+                            id: null,
+                            name: '',
+                            username: '',
+                            department: '',
+                            role: 'staff',
+                            permissions: ['read', 'stock_in', 'stock_out'],
+                            reason: ''
+                        };
+                    }
+                    showGrantModal.value = true;
+                };
+
+                const onRoleSelectChange = () => {
+                    const r = grantForm.value.role;
+                    if (r === 'admin') {
+                        grantForm.value.permissions = ['read', 'stock_in', 'stock_out', 'approve', 'edit', 'delete', 'reports', 'admin_access'];
+                    } else if (r === 'manager') {
+                        grantForm.value.permissions = ['read', 'stock_in', 'stock_out', 'approve', 'edit', 'reports'];
+                    } else if (r === 'staff') {
+                        grantForm.value.permissions = ['read', 'stock_in', 'stock_out'];
+                    } else if (r === 'executive') {
+                        grantForm.value.permissions = ['read', 'reports'];
+                    } else {
+                        grantForm.value.permissions = ['read'];
+                    }
+                };
+
+                const saveUserPermissions = () => {
+                    if (isEditingUser.value) {
+                        const index = usersList.value.findIndex(u => u.id === grantForm.value.id);
+                        if (index !== -1) {
+                            usersList.value[index] = {
+                                ...usersList.value[index],
+                                name: grantForm.value.name,
+                                username: grantForm.value.username,
+                                email: grantForm.value.username,
+                                department: grantForm.value.department,
+                                role: grantForm.value.role,
+                                permissions: [...grantForm.value.permissions]
+                            };
+                            addAuditLog('ปรับปรุงสิทธิ์ผู้ใช้', `ปรับปรุงสิทธิ์ผู้ใช้ ${grantForm.value.name} (${grantForm.value.role}) เหตุผล: ${grantForm.value.reason}`);
+                        }
+                    } else {
+                        const newUser = {
+                            id: 'U' + (usersList.value.length + 1),
+                            name: grantForm.value.name,
+                            username: grantForm.value.username,
+                            email: grantForm.value.username,
+                            password: '123',
+                            department: grantForm.value.department || 'ทั่วไป',
+                            role: grantForm.value.role,
+                            permissions: [...grantForm.value.permissions]
+                        };
+                        usersList.value.push(newUser);
+                        addAuditLog('เพิ่มผู้ได้รับสิทธิ์ใหม่', `เพิ่มผู้ใช้งานใหม่ ${newUser.name} กำหนดสิทธิ์: ${grantForm.value.role} เหตุผล: ${grantForm.value.reason}`);
+                    }
+                    showGrantModal.value = false;
+                };
+
+                const revokeUserAccess = (user) => {
+                    if (confirm(`คุณต้องการยกเลิกสิทธิ์การใช้งานของ ${user.name} หรือไม่?`)) {
+                        usersList.value = usersList.value.filter(u => u.id !== user.id);
+                        addAuditLog('ยกเลิกสิทธิ์ผู้ใช้', `ยกเลิกสิทธิ์ผู้ใช้งาน ${user.name} (${user.username})`);
+                    }
+                };
+
+                const getRoleBadgeClass = (role) => {
+                    switch (role) {
+                        case 'admin': return 'bg-purple-100 text-purple-800 border-purple-200';
+                        case 'manager': return 'bg-blue-100 text-blue-800 border-blue-200';
+                        case 'staff': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                        case 'executive': return 'bg-amber-100 text-amber-800 border-amber-200';
+                        default: return 'bg-slate-100 text-slate-800 border-slate-200';
+                    }
+                };
+
+                const getRoleLabel = (role) => {
+                    switch (role) {
+                        case 'admin': return 'System Admin';
+                        case 'manager': return 'Store Manager';
+                        case 'staff': return 'Warehouse Staff';
+                        case 'executive': return 'Executive';
+                        case 'supplier': return 'Supplier';
+                        default: return role;
+                    }
+                };
+
+                const getPermissionLabel = (permKey) => {
+                    const p = availablePermissions.find(item => item.key === permKey);
+                    return p ? p.label : permKey;
+                };
+
+                // ================= PRODUCT & INVENTORY STATE =================
+                const categories = ['เครื่องดื่ม', 'อาหารแห้ง', 'วัตถุดิบประกอบอาหาร', 'อุปกรณ์'];
+                const productSearch = ref('');
+                const selectedCategory = ref('');
+
+                const products = ref([
+                    { id: 1, code: 'P001', name: 'เมล็ดกาแฟ อาราบิก้า 100% (1kg)', category: 'เครื่องดื่ม', cost: 350, stock: 18, minStock: 20, unit: 'ถุง', location: 'A-01-2' },
+                    { id: 2, code: 'P002', name: 'นมสดพาสเจอร์ไรส์ 2L', category: 'เครื่องดื่ม', cost: 92, stock: 5, minStock: 10, unit: 'แกลลอน', location: 'Chill-1' },
+                    { id: 3, code: 'P003', name: 'ไซรัปวานิลลา 750ml', category: 'เครื่องดื่ม', cost: 280, stock: 12, minStock: 5, unit: 'ขวด', location: 'B-02-1' },
+                    { id: 4, code: 'P004', name: 'แก้วกาแฟเย็น 16oz (100 ชิ้น)', category: 'อุปกรณ์', cost: 150, stock: 45, minStock: 15, unit: 'แพ็ค', location: 'C-01-1' }
+                ]);
+
+                const lots = ref([
+                    { productId: 2, lotNumber: 'LOT-2026-001', mfgDate: '2026-09-15', expDate: '2026-09-30', qty: 5 },
+                    { productId: 1, lotNumber: 'LOT-2026-088', mfgDate: '2026-08-01', expDate: '2027-08-01', qty: 18 },
+                    { productId: 3, lotNumber: 'LOT-2026-042', mfgDate: '2026-07-10', expDate: '2026-10-15', qty: 12 }
+                ]);
+
+                const pendingApprovals = ref([
+                    { id: 101, productId: 1, productName: 'เมล็ดกาแฟ อาราบิก้า 100% (1kg)', qty: 5, unit: 'ถุง', requestedBy: 'วิชัย พนักงานคลัง', date: '2026-09-24', reason: 'เบิกจ่ายสาขาหน้าเมือง' }
+                ]);
+
+                const purchaseOrders = ref([
+                    { id: 1, poNumber: 'PO-2026-001', supplierName: 'บจก. ซัพพลายเออร์ ไทย', items: 'เมล็ดกาแฟ 50 ถุง', totalAmount: 17500, status: 'รอดำเนินการ' }
+                ]);
+
+                const auditLogs = ref([
+                    { id: 1, timestamp: '2026-09-24 09:30:12', user: 'สมศักดิ์ ผู้ดูแลระบบ', action: 'เริ่มต้นระบบ', details: 'ระบบเปิดใช้งานตามปกติ' }
+                ]);
+
+                const addAuditLog = (action, details) => {
+                    const now = new Date();
+                    const timeStr = now.toISOString().replace('T', ' ').substring(0, 19);
+                    auditLogs.value.unshift({
+                        id: Date.now(),
+                        timestamp: timeStr,
+                        user: currentUser.value ? currentUser.value.name : 'System',
+                        action: action,
+                        details: details
+                    });
+                };
+
+                // Computed
+                const totalStockCount = computed(() => products.value.reduce((acc, p) => acc + p.stock, 0));
+                const totalStockValue = computed(() => products.value.reduce((acc, p) => acc + (p.stock * p.cost), 0));
+                const lowStockProducts = computed(() => products.value.filter(p => p.stock <= p.minStock));
+
+                const filteredProducts = computed(() => {
+                    return products.value.filter(p => {
+                        const matchesSearch = p.name.toLowerCase().includes(productSearch.value.toLowerCase()) || 
+                                              p.code.toLowerCase().includes(productSearch.value.toLowerCase());
+                        const matchesCat = !selectedCategory.value || p.category === selectedCategory.value;
+                        return matchesSearch && matchesCat;
+                    });
+                });
+
+                const expiringLots = computed(() => {
+                    return lots.value.filter(l => isExpiringSoon(l.expDate));
+                });
+
+                // Helpers
+                const formatNumber = (val) => new Intl.NumberFormat('th-TH').format(val || 0);
+
+                const getProductName = (productId) => {
+                    const p = products.value.find(item => item.id === productId);
+                    return p ? p.name : 'ไม่ระบุ';
+                };
+
+                const getRecommendedLot = (productId) => {
+                    const prodLots = lots.value.filter(l => l.productId === productId && l.qty > 0);
+                    if (prodLots.length === 0) return 'ไม่มีข้อมูลล็อต';
+                    prodLots.sort((a, b) => new Date(a.expDate) - new Date(b.expDate));
+                    return `${prodLots[0].lotNumber} (EXP: ${prodLots[0].expDate})`;
+                };
+
+                const isExpiringSoon = (expDateStr) => {
+                    const exp = new Date(expDateStr);
+                    const today = new Date();
+                    const diffDays = (exp - today) / (1000 * 60 * 60 * 24);
+                    return diffDays <= 30;
+                };
+
+                const getLogBadgeClass = (action) => {
+                    if (action.includes('เพิ่ม') || action.includes('อนุมัติ') || action.includes('สำเร็จ')) return 'bg-emerald-100 text-emerald-800';
+                    if (action.includes('ยกเลิก') || action.includes('ลบ')) return 'bg-rose-100 text-rose-800';
+                    return 'bg-blue-100 text-blue-800';
+                };
+
+                // Product CRUD Modals
+                const showProductModal = ref(false);
+                const isEditingProduct = ref(false);
+                const productForm = ref({ id: null, code: '', name: '', category: '', unit: '', cost: 0, minStock: 0, location: '' });
+
+                const openProductModal = (p = null) => {
+                    if (p) {
+                        isEditingProduct.value = true;
+                        productForm.value = { ...p };
+                    } else {
+                        isEditingProduct.value = false;
+                        productForm.value = { id: Date.now(), code: 'P00' + (products.value.length + 1), name: '', category: categories[0], unit: 'ชิ้น', cost: 100, minStock: 10, location: 'A-01' };
+                    }
+                    showProductModal.value = true;
+                };
+
+                const saveProduct = () => {
+                    if (isEditingProduct.value) {
+                        const idx = products.value.findIndex(p => p.id === productForm.value.id);
+                        if (idx !== -1) {
+                            products.value[idx] = { ...products.value[idx], ...productForm.value };
+                            addAuditLog('แก้ไขสินค้า', `แก้ไขข้อมูลสินค้า ${productForm.value.name} (${productForm.value.code})`);
+                        }
+                    } else {
+                        products.value.push({ ...productForm.value, stock: 0 });
+                        addAuditLog('เพิ่มสินค้าใหม่', `เพิ่มสินค้า ${productForm.value.name} เข้าสู่ระบบ`);
+                    }
+                    showProductModal.value = false;
+                };
+
+                const deleteProduct = (id) => {
+                    const p = products.value.find(item => item.id === id);
+                    if (p && confirm(`คุณต้องการลบสินค้า ${p.name} ใช่หรือไม่?`)) {
+                        products.value = products.value.filter(item => item.id !== id);
+                        addAuditLog('ลบสินค้า', `ลบรายการสินค้า ${p.name} (${p.code})`);
+                    }
+                };
+
+                // Stock In
+                const showStockInModal = ref(false);
+                const selectedProductForStock = ref(null);
+                const stockInForm = ref({ qty: 1, lotNumber: '', mfgDate: '', expDate: '' });
+
+                const openStockInModal = (p) => {
+                    selectedProductForStock.value = p;
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    stockInForm.value = {
+                        qty: 10,
+                        lotNumber: 'LOT-' + new Date().getFullYear() + '-' + Math.floor(100 + Math.random() * 900),
+                        mfgDate: todayStr,
+                        expDate: '2027-12-31'
+                    };
+                    showStockInModal.value = true;
+                };
+
+                const processStockIn = () => {
+                    if (!selectedProductForStock.value) return;
+                    selectedProductForStock.value.stock += stockInForm.value.qty;
+
+                    lots.value.push({
+                        productId: selectedProductForStock.value.id,
+                        lotNumber: stockInForm.value.lotNumber,
+                        mfgDate: stockInForm.value.mfgDate,
+                        expDate: stockInForm.value.expDate,
+                        qty: stockInForm.value.qty
+                    });
+
+                    addAuditLog('รับสินค้าเข้าสต็อก', `รับสินค้า ${selectedProductForStock.value.name} จำนวน ${stockInForm.value.qty} ${selectedProductForStock.value.unit} (ล็อต: ${stockInForm.value.lotNumber})`);
+                    showStockInModal.value = false;
+                };
+
+                // Stock Out
+                const showStockOutModal = ref(false);
+                const stockOutForm = ref({ qty: 1, reason: '' });
+
+                const openStockOutModal = (p) => {
+                    selectedProductForStock.value = p;
+                    stockOutForm.value = { qty: 1, reason: 'เบิกจ่ายใช้งานปกติ' };
+                    showStockOutModal.value = true;
+                };
+
+                const processStockOut = () => {
+                    if (!selectedProductForStock.value) return;
+                    if (stockOutForm.value.qty > selectedProductForStock.value.stock) {
+                        alert('จำนวนที่เบิกเกินจำนวนที่มีในสต็อก');
+                        return;
+                    }
+
+                    selectedProductForStock.value.stock -= stockOutForm.value.qty;
+                    addAuditLog('เบิกจ่ายสินค้า', `เบิกสินค้า ${selectedProductForStock.value.name} จำนวน ${stockOutForm.value.qty} ${selectedProductForStock.value.unit} เหตุผล: ${stockOutForm.value.reason}`);
+                    showStockOutModal.value = false;
+                };
+
+                // Create PO
+                const showCreatePOModal = ref(false);
+                const poForm = ref({ supplierName: '', items: '', totalAmount: 0 });
+
+                const savePO = () => {
+                    const newPO = {
+                        id: Date.now(),
+                        poNumber: 'PO-' + new Date().getFullYear() + '-' + Math.floor(100 + Math.random() * 900),
+                        supplierName: poForm.value.supplierName,
+                        items: poForm.value.items,
+                        totalAmount: poForm.value.totalAmount,
+                        status: 'รอดำเนินการ'
+                    };
+                    purchaseOrders.value.unshift(newPO);
+                    addAuditLog('สร้างใบ PO', `ออกใบสั่งซื้อ ${newPO.poNumber} ถึง ${newPO.supplierName}`);
+                    showCreatePOModal.value = false;
+                    poForm.value = { supplierName: '', items: '', totalAmount: 0 };
+                };
+
+                // Approvals
+                const approveRequest = (reqId) => {
+                    const req = pendingApprovals.value.find(r => r.id === reqId);
+                    if (req) {
+                        const p = products.value.find(prod => prod.id === req.productId);
+                        if (p && p.stock >= req.qty) {
+                            p.stock -= req.qty;
+                            addAuditLog('อนุมัติการเบิกจ่าย', `อนุมัติคำขอเบิกสินค้า ${req.productName} จำนวน ${req.qty} ${req.unit}`);
+                        }
+                        pendingApprovals.value = pendingApprovals.value.filter(r => r.id !== reqId);
+                    }
+                };
+
+                const rejectRequest = (reqId) => {
+                    const req = pendingApprovals.value.find(r => r.id === reqId);
+                    if (req) {
+                        addAuditLog('ไม่อนุมัติคำขอ', `ปฏิเสธคำขอเบิกสินค้า ${req.productName}`);
+                        pendingApprovals.value = pendingApprovals.value.filter(r => r.id !== reqId);
+                    }
+                };
+
+                // QR Scanner
+                const showScannerModal = ref(false);
+                let html5QrCode = null;
+
+                const openScannerModal = () => {
+                    showScannerModal.value = true;
+                    setTimeout(() => {
+                        html5QrCode = new Html5Qrcode("qr-reader");
+                        html5QrCode.start(
+                            { facingMode: "environment" },
+                            { fps: 10, qrbox: { width: 200, height: 200 } },
+                            (decodedText) => {
+                                productSearch.value = decodedText;
+                                closeScannerModal();
+                            },
+                            () => {}
+                        ).catch(() => {});
+                    }, 300);
+                };
+
+                const closeScannerModal = () => {
+                    if (html5QrCode) {
+                        html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
+                    }
+                    showScannerModal.value = false;
+                };
+
+                // Export CSV
+                const exportCSV = () => {
+                    let csvContent = "\uFEFFรหัสสินค้า,ชื่อสินค้า,หมวดหมู่,คงเหลือ,หน่วย,ต้นทุน\n";
+                    products.value.forEach(p => {
+                        csvContent += `"${p.code}","${p.name}","${p.category}",${p.stock},"${p.unit}",${p.cost}\n`;
+                    });
+
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `Stock_Report_${new Date().toISOString().slice(0,10)}.csv`;
+                    link.click();
+
+                    addAuditLog('ส่งออกรายงาน', 'ส่งออกข้อมูลสต็อกสินค้าเป็นไฟล์ CSV');
+                };
+
+                // Initial Quick Auto-Login for demo convenience (Admin mode preset)
+                onMounted(() => {
+                    quickLogin('admin');
+                });
+
+                return {
+                    // Auth & Users
+                    currentUser,
+                    loginForm,
+                    loginError,
+                    usersList,
+                    availablePermissions,
+                    handleLogin,
+                    quickLogin,
+                    logout,
+                    hasPermission,
+                    canAccessTab,
+
+                    // Nav
+                    activeTab,
+                    navTabs,
+
+                    // Stock Counting
+                    stockCountSessions,
+                    showCreateCountModal,
+                    activeCountingSession,
+                    countForm,
+                    openCreateCountModal,
+                    saveCreateCountSession,
+                    finalizeStockCount,
+                    viewCountReport,
+
+                    // Admin Permissions Modal
+                    showGrantModal,
+                    isEditingUser,
+                    grantForm,
+                    openGrantPermissionModal,
+                    onRoleSelectChange,
+                    saveUserPermissions,
+                    revokeUserAccess,
+                    getRoleBadgeClass,
+                    getRoleLabel,
+                    getPermissionLabel,
+
+                    // Product & Inventory
+                    products,
+                    categories,
+                    productSearch,
+                    selectedCategory,
+                    filteredProducts,
+                    totalStockCount,
+                    totalStockValue,
+                    lowStockProducts,
+                    lots,
+                    expiringLots,
+                    pendingApprovals,
+                    purchaseOrders,
+                    auditLogs,
+                    formatNumber,
+                    getProductName,
+                    getRecommendedLot,
+                    isExpiringSoon,
+                    getLogBadgeClass,
+
+                    // Product Modal
+                    showProductModal,
+                    isEditingProduct,
+                    productForm,
+                    openProductModal,
+                    saveProduct,
+                    deleteProduct,
+
+                    // Stock In Modal
+                    showStockInModal,
+                    selectedProductForStock,
+                    stockInForm,
+                    openStockInModal,
+                    processStockIn,
+
+                    // Stock Out Modal
+                    showStockOutModal,
+                    stockOutForm,
+                    openStockOutModal,
+                    processStockOut,
+
+                    // PO Modal
+                    showCreatePOModal,
+                    poForm,
+                    savePO,
+
+                    // Approvals & Scanner & Export
+                    approveRequest,
+                    rejectRequest,
+                    showScannerModal,
+                    openScannerModal,
+                    closeScannerModal,
+                    exportCSV
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
